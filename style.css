@@ -4,7 +4,7 @@ html {
   padding: 0;
   font-family: sans-serif;
   height: 100%;
-  /*background-color: #222;*/
+  background-color: #454040;
 }
 
 div.main {
@@ -37,6 +37,9 @@ button:hover {
   bottom: 0;
   left: 0;
   right: 0;
+}
+#valueDisplay{
+  color: white;
 }
 
 #container > div {
