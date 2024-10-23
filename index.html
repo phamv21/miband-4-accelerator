@@ -60,6 +60,7 @@
     const connectButton = document.querySelector("#connect-button");
     const keyInput = document.querySelector("#auth-key");
     const initBox = document.querySelector(".init");
+    let anchorTime = new Date();
     let authKey = localStorage.getItem("auth-key");
     if (authKey) {
         keyInput.value = authKey;
@@ -138,6 +139,7 @@
 
             // Update display
             updateDisplay(x, y, z);
+            const timeLabel = Math.round((new Date() - anchorTime)/1000);
 
             // Add new data to the chart
             if (data.labels.length > 50) {
@@ -148,7 +150,7 @@
             }
 
             // Add a new time label
-            data.labels.push(data.labels.length + 1); // Incrementing step count as label
+            data.labels.push(timeLabel); // Incrementing step count as label
             data.datasets[0].data.push(x);
             data.datasets[1].data.push(y);
             data.datasets[2].data.push(z);
