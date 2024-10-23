@@ -8,7 +8,7 @@ export class Chart {
     const options = {
       chart: {
         type: "area",
-        height: "100%",
+        height: "30%",
         animations: {
           enabled: false,
         },

@@ -1,79 +1,172 @@
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
-    />
-    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <title>MiBand 5 Heartrate</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <div id="chart"></div>
-    <div id="container">
-      <div class="init">
-        <div class="form-group">
-          <label for="auth-key"
-            >Auth key
-            <a
-              target="_blank"
-              href="https://github.com/Freeyourgadget/Gadgetbridge/wiki/Huami-Server-Pairing"
-              >what is this?</a
-            >
-          </label>
-        </div>
-        <div class="form-group">
-          <input
-            type="text"
-            id="auth-key"
-            placeholder="94359d5b8b092e1286a43cfb62ee7923"
-          />
-        </div>
-        <div class="form-group">
-          <button id="connect-button">Connect</button>
-        </div>
-      </div>
-      <div class="hr d-none">
-        <h1 id="heartrate">
-          <span id="hr">-</span><span class="unit">BPM</span>
-        </h1>
-      </div>
-    </div>
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceleration Values</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="aes.js"></script>
     <script src="bundle.js"></script>
-    <script>
-      const chart = new Chart("#chart");
-      const hr = document.querySelector("#hr");
-      const connectButton = document.querySelector("#connect-button");
-      const keyInput = document.querySelector("#auth-key");
-      const initBox = document.querySelector(".init");
-      const hrBox = document.querySelector(".hr");
-      let authKey = localStorage.getItem("auth-key");
-      if (authKey) {
-        keyInput.value = authKey;
-      }
 
-      connectButton.addEventListener("click", async () => {
+    <style>
+        #valueDisplay {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        canvas {
+            max-width: 800px;
+            max-height: 600px;
+        }
+    </style>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="valueDisplay">
+    <p>X: <span id="xVal">0</span></p>
+    <p>Y: <span id="yVal">0</span></p>
+    <p>Z: <span id="zVal">0</span></p>
+</div>
+<canvas id="rateOfChangeChart"></canvas>
+
+<canvas id="accelChart"></canvas>
+<div id="container">
+    <div class="init">
+        <div class="form-group">
+            <label for="auth-key"
+            >Auth key
+                <a
+                        target="_blank"
+                        href="https://github.com/Freeyourgadget/Gadgetbridge/wiki/Huami-Server-Pairing"
+                >what is this?</a
+                >
+            </label>
+        </div>
+        <div class="form-group">
+            <input
+                    type="text"
+                    id="auth-key"
+                    placeholder="94359d5b8b092e1286a43cfb62ee7923"
+            />
+        </div>
+        <div class="form-group">
+            <button id="connect-button">Connect</button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    const connectButton = document.querySelector("#connect-button");
+    const keyInput = document.querySelector("#auth-key");
+    const initBox = document.querySelector(".init");
+    let authKey = localStorage.getItem("auth-key");
+    if (authKey) {
+        keyInput.value = authKey;
+    }
+    // Setup the initial chart data
+    const ctx = document.getElementById('accelChart').getContext('2d');
+    const data = {
+        labels: [], // Time or step count
+        datasets: [
+            {
+                label: 'X',
+                borderColor: 'rgb(255, 99, 132)',
+                data: [],
+                fill: false,
+            },
+            {
+                label: 'Y',
+                borderColor: 'rgb(54, 162, 235)',
+                data: [],
+                fill: false,
+            },
+            {
+                label: 'Z',
+                borderColor: 'rgb(75, 192, 192)',
+                data: [],
+                fill: false,
+            }
+        ]
+    };
+
+    const accelChart = new Chart(ctx, {
+        type: 'line',
+        data: data,
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Time (or steps)'
+                    }
+                },
+                y: {
+                    suggestedMin: -100,
+                    suggestedMax: 100,
+                    title: {
+                        display: true,
+                        text: 'Acceleration Values'
+                    }
+                }
+            }
+        }
+    });
+
+
+
+
+
+    // Update HTML elements to display current x, y, z
+    function updateDisplay(x, y, z) {
+        document.getElementById('xVal').innerText = x;
+        document.getElementById('yVal').innerText = y;
+        document.getElementById('zVal').innerText = z;
+    }
+
+    // Listen for the custom "accel" event
+    connectButton.addEventListener("click", async () => {
         authKey = keyInput.value;
         window.addEventListener("connected", (e) => {
-          initBox.classList.add("d-none");
-          hrBox.classList.remove("d-none");
-          localStorage.setItem("auth-key", authKey);
+            initBox.classList.add("d-none");
+            hrBox.classList.remove("d-none");
+            localStorage.setItem("auth-key", authKey);
         });
-        window.addEventListener("heartrate", (e) => {
-          console.log("Got heartrate", e.detail);
-          hr.innerText = e.detail;
-          chart.update(e.detail);
+        window.addEventListener('accel', function(event) {
+            const { x, y, z } = event.detail;
+
+            // Update display
+            updateDisplay(x, y, z);
+
+            // Add new data to the chart
+            if (data.labels.length > 50) {
+                data.labels.shift();
+                data.datasets[0].data.shift();
+                data.datasets[1].data.shift();
+                data.datasets[2].data.shift();
+            }
+
+            // Add a new time label
+            data.labels.push(data.labels.length + 1); // Incrementing step count as label
+            data.datasets[0].data.push(x);
+            data.datasets[1].data.push(y);
+            data.datasets[2].data.push(z);
+
+            // Update the chart
+            accelChart.update();
         });
+
+
         try {
-          window.miband = new MiBand5(authKey);
-          await window.miband.init();
+            window.miband = new MiBand5(authKey);
+            await window.miband.init();
         } catch (e) {
-          alert(e.message);
+            alert(e.message);
         }
-      });
-    </script>
-  </body>
+    });
+
+</script>
+
+</body>
 </html>

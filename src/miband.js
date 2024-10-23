@@ -55,12 +55,19 @@ export class MiBand5 {
     this.chars.hrControl = await this.services.heartrate.getCharacteristic(
       CHAR_UUIDS.heartrate_control
     );
+    this.chars.accel_measure = await this.services.miband1.getCharacteristic(
+        CHAR_UUIDS.hz
+    );
+    this.chars.sensor = await this.services.miband1.getCharacteristic(
+        CHAR_UUIDS.sensor
+    );
+    this.chars.accel_desc = await this.chars.accel_mesusre.getDescriptor(
+        0x2902
+    );
     this.chars.hrMeasure = await this.services.heartrate.getCharacteristic(
       CHAR_UUIDS.heartrate_measure
     );
-    this.chars.sensor = await this.services.miband1.getCharacteristic(
-      CHAR_UUIDS.sensor
-    );
+
     console.log("Characteristics initialized");
     await this.authenticate();
   }
@@ -97,28 +104,60 @@ export class MiBand5 {
     await this.measureHr();
   }
 
+  unpack(buffer, offset) {
+    const dataView = new DataView(buffer);
+
+    const value1 = dataView.getInt16(offset, true);  // true for little-endian
+    const value2 = dataView.getInt16(offset + 2, true);
+    const value3 = dataView.getInt16(offset + 4, true);
+
+    return [value1, value2, value3];
+  }
+
   async measureHr() {
-    console.log("Starting heart rate measurement")
-    await this.chars.hrControl.writeValue(Uint8Array.from([0x15, 0x02, 0x00]));
-    await this.chars.hrControl.writeValue(Uint8Array.from([0x15, 0x01, 0x00]));
-    await this.startNotifications(this.chars.hrMeasure, (e) => {
-      console.log("Received heart rate value: ", e.target.value);
-      const heartRate = e.target.value.getInt16();
-      window.dispatchEvent(
-        new CustomEvent("heartrate", {
-          detail: heartRate,
-        })
-      );
+    console.log("Starting accelerator measurement")
+
+    await this.chars.accel.writeValue(Uint8Array.from([0x01, 0x01, 0x19]));
+    await this.chars.accel.writeValue(Uint8Array.from([0x02]));
+
+    await this.startNotifications(this.chars.accel_mesusre, (e) => {
+      // console.log("Received value: ", e.target.value);
+      if (e.target.value.byteLength >= 20) {
+        const dataView = e.target.value;
+        let offset = 2
+        let x = dataView.getInt16(offset, true);      // Signed 16-bit integer at offset
+        let y = dataView.getInt16(offset + 6, true);  // Signed 16-bit integer at offset + 2
+        let z = dataView.getInt16(offset + 12, true); // Signed 16-bit integer at offset + 4
+        window.dispatchEvent(
+            new CustomEvent("accel", {
+              detail: {x, y, z},
+            })
+        );
+      }
+
     });
-    await this.chars.hrControl.writeValue(Uint8Array.from([0x15, 0x01, 0x01]));
 
     // Start pinging HRM
     this.hrmTimer =
       this.hrmTimer ||
-      setInterval(() => {
-        console.log("Pinging heart rate monitor");
-        this.chars.hrControl.writeValue(Uint8Array.from([0x16]));
-      }, 12000);
+      setInterval( () => {
+        // Ping the sensor
+         this.chars.sensor.writeValue(Uint8Array.from([0x01,0x01,0x19])).then(() => {
+           this.chars.sensor.writeValue(Uint8Array.from([0x02])).then(() => {
+             console.log("ping done")
+           });
+         });
+
+      }, 59700);
+    this.hrmTimer2 =
+        this.hrmTimer2 ||
+        setInterval( () => {
+          this.chars.sensor.writeValue(Uint8Array.from([0x01,0x01,0x19])).then(() => {
+            this.chars.sensor.writeValue(Uint8Array.from([0x02])).then(() => {
+              console.log("ping done")
+            });
+          });
+        }, 72500);
   }
 
   async startNotifications(char, cb) {
