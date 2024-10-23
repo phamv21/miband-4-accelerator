@@ -61,7 +61,7 @@ export class MiBand5 {
     this.chars.sensor = await this.services.miband1.getCharacteristic(
         CHAR_UUIDS.sensor
     );
-    this.chars.accel_desc = await this.chars.accel_mesusre.getDescriptor(
+    this.chars.accel_desc = await this.chars.accel_measure.getDescriptor(
         0x2902
     );
     this.chars.hrMeasure = await this.services.heartrate.getCharacteristic(
@@ -117,10 +117,10 @@ export class MiBand5 {
   async measureHr() {
     console.log("Starting accelerator measurement")
 
-    await this.chars.accel.writeValue(Uint8Array.from([0x01, 0x01, 0x19]));
-    await this.chars.accel.writeValue(Uint8Array.from([0x02]));
+    await this.chars.sensor.writeValue(Uint8Array.from([0x01, 0x01, 0x19]));
+    await this.chars.sensor.writeValue(Uint8Array.from([0x02]));
 
-    await this.startNotifications(this.chars.accel_mesusre, (e) => {
+    await this.startNotifications(this.chars.accel_measure, (e) => {
       // console.log("Received value: ", e.target.value);
       if (e.target.value.byteLength >= 20) {
         const dataView = e.target.value;
@@ -157,7 +157,7 @@ export class MiBand5 {
               console.log("ping done")
             });
           });
-        }, 72500);
+        }, 72700);
   }
 
   async startNotifications(char, cb) {
